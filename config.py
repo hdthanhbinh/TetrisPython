@@ -23,7 +23,17 @@ WINDOW_WIDTH = BOARD_WIDTH + SIDE_PANEL_WIDTH + MARGIN_LEFT*2
 WINDOW_HEIGHT = BOARD_HEIGHT + MARGIN_TOP*2
 
 # Tốc độ
-START_SPEED = 500
+START_SPEED = 800  # ms cho 1 bước rơi xuống
+# Tốc độ giữ phím (ms)
+MOVE_REPEAT_MS      = 90   # giữ ←/→ lặp mỗi 90ms
+SOFT_DROP_REPEAT_MS = 30   # giữ ↓ rơi nhanh mỗi 30ms
+ROTATE_REPEAT_MS    = 150  # (nếu muốn chặn xoay quá nhanh)
+
+# mốc thời gian lần cuối di chuyển
+last_move_left  = 0
+last_move_right = 0
+last_move_down  = 0
+last_rotate     = 0
 
 # Fonts
 pg.font.init()
