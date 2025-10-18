@@ -284,7 +284,7 @@ while status:
     next_y = ui.controls_rect.bottom + 20
 
     # NEXT
-    next_rect = pg.Rect(panel_x, next_y, 200, 140)
+    next_rect = pg.Rect(panel_x, next_y, 200, 150)
     pg.draw.rect(screen, BLUE_DARK, next_rect)
     pg.draw.rect(screen, YELLOW, next_rect, 3, border_radius=10)
     text_next = FONT_SMALL.render("NEXT", True, YELLOW)
