@@ -87,6 +87,16 @@ paused = False
 # 🟩 [NEW] bổ sung biến đệm để tránh NameError trong move_piece (code cũ: dùng nhưng chưa khai báo ban đầu)
 left_pressed = right_pressed = down_pressed = False
 
+# 🟩 [NEW] Hàm đồng bộ trạng thái Pause giữa logic & UI
+def set_paused(state: bool):
+    global paused
+    paused = state
+    try:
+        ui.paused = state               # đồng bộ UI overlay
+        ui.btn_pause.set_text('Resume' if state else 'Pause')  # đồng bộ nhãn nút
+    except Exception:
+        pass
+
 # 🟩 [NEW] gom logic reset game để dùng cho nút Restart (code cũ: reset rải trong KEYUP khi game_over)
 def reset_game():
     global grid, score, level, character, next_tetro, game_over, paused, speed
@@ -99,7 +109,7 @@ def reset_game():
     character = Tetroromino(next_tetro)
     next_tetro = rnd.choice(TETROROMINOS)
     game_over = False
-    paused = False
+    set_paused(False)  # 🟩 [NEW] đảm bảo UI & logic đều không còn pause
 
 def move_piece():
     # 🟧 [CHANGED] Dùng tick (ms) để lặp khi giữ phím cho mượt & dễ chỉnh
@@ -121,10 +131,9 @@ def move_piece():
 
 
 # 🟩 [NEW] callback cho UI (Pause/Restart/Quit)
-def handle_toggle_pause(is_paused):
+def handle_toggle_pause(is_paused: bool):
     # code cũ: toggle bằng phím => giờ đồng bộ thêm từ UI
-    global paused
-    paused = is_paused
+    set_paused(is_paused)
 
 def handle_restart():
     # code cũ: reset trong KEYUP khi game_over => giờ gom vào reset_game()
@@ -164,22 +173,14 @@ while status:
         if event.type == pg.KEYDOWN:
             # === Toggle Pause bằng SPACE ===
             if event.key == pg.K_SPACE:
-                paused = not paused
-                ui.paused = paused
-                try:
-                    ui.btn_pause.set_text('Resume' if paused else 'Pause')
-                except Exception:
-                    pass
+                # 🟧 [CHANGED] dùng hàm đồng bộ
+                set_paused(not paused)
                 continue  # 🟩 sau khi toggle, bỏ qua xử lý phím khác của frame này
 
             # === Toggle Pause bằng ESC ===
             if event.key == pg.K_ESCAPE:
-                paused = not paused
-                ui.paused = paused
-                try:
-                    ui.btn_pause.set_text('Resume' if paused else 'Pause')
-                except Exception:
-                    pass
+                # 🟧 [CHANGED] dùng hàm đồng bộ
+                set_paused(not paused)
                 continue
 
             # 🟩 [NEW] nếu đang pause -> không xử lý phím game
