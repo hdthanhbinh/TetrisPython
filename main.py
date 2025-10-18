@@ -45,11 +45,13 @@ def UpdateScore(sco):
         record = score
         save_record(record)
     
-    new_level = score // 50 + 1  # Tăng level mỗi 50 điểm (code cũ: comment ghi 100 điểm, mình sửa comment cho khớp công thức)
+    new_level = score // 200 + 1  # Tăng level mỗi 50 điểm (code cũ: comment ghi 100 điểm, mình sửa comment cho khớp công thức)
     if new_level > level:
         level = new_level
         # đặt giới hạn tối thiểu của tốc độ và tăng giảm tốc độ theo cấp
-        speed = max(100, START_SPEED - (level - 1) * 200)
+        # speed = max(100, START_SPEED - (level - 1) * 200)
+        speed = int(speed * 0.8)
+        speed = max(100, speed)
         pg.time.set_timer(TETROROMINO_DOWN, speed)
 
 # ảnh block
@@ -276,24 +278,40 @@ while status:
     pg.draw.rect(screen, YELLOW, board_rect, 2)
 
     # panel bên phải
-    panel_x = MARGIN_LEFT + BOARD_WIDTH + 60
+    panel_x = MARGIN_LEFT + BOARD_WIDTH + 70
 
-    ui.place_controls(panel_x, 20, 200, 160)  # 🟩 [NEW] đặt vị trí cụm nút UI
+    ui.place_controls(panel_x, 40, 200, 130)  # 🟩 [NEW] đặt vị trí cụm nút UI
     next_y = ui.controls_rect.bottom + 20
 
     # NEXT
-    next_rect = pg.Rect(panel_x, next_y, 200, 160)
+    next_rect = pg.Rect(panel_x, next_y, 200, 140)
     pg.draw.rect(screen, BLUE_DARK, next_rect)
     pg.draw.rect(screen, YELLOW, next_rect, 3, border_radius=10)
     text_next = FONT_SMALL.render("NEXT", True, YELLOW)
     screen.blit(text_next, (next_rect.centerx - text_next.get_width()//2, next_rect.y + 5))
 
-    demo_tetro = next_tetro  # demo NEXT
-    for n, color in enumerate(demo_tetro):
-        if color > 0:
-            x = next_rect.centerx + (n % 4 - 2) * DISTANCE
-            y = next_rect.centery + (n // 4 - 2) * DISTANCE
-            screen.blit(picture[color], (x+2, y))
+    # --- Căn giữa tetromino ---
+    demo_tetro = next_tetro
+    coords = [(n % 4, n // 4) for n, color in enumerate(demo_tetro) if color > 0]
+    if coords:
+        min_x = min(x for x, _ in coords)
+        max_x = max(x for x, _ in coords)
+        min_y = min(y for _, y in coords)
+        max_y = max(y for _, y in coords)
+
+        width = (max_x - min_x + 1) * DISTANCE
+        height = (max_y - min_y + 1) * DISTANCE
+
+        offset_x = next_rect.centerx - width // 2
+        offset_y = next_rect.centery - height // 2 + 10  # 10px cho dễ nhìn
+
+        for n, color in enumerate(demo_tetro):
+            if color > 0:
+                grid_x = n % 4
+                grid_y = n // 4
+                x = offset_x + (grid_x - min_x) * DISTANCE
+                y = offset_y + (grid_y - min_y) * DISTANCE
+                screen.blit(picture[color], (x, y))
 
     # SCORE
     score_rect  = pg.Rect(panel_x, next_rect.bottom  + 20, 200, 100)
@@ -322,13 +340,27 @@ while status:
     screen.blit(text_level, (level_rect.centerx - text_level.get_width()//2, level_rect.y + 5))
     screen.blit(text_level_val, (level_rect.centerx - text_level_val.get_width()//2, level_rect.y + 40))
 
-    # Game Over
     if game_over:
-        text_gameover = FONT_BIG.render("GAME OVER", True, RED)
-        screen.blit(text_gameover, (WINDOW_WIDTH//2 - text_gameover.get_width()//2,
-                                     WINDOW_HEIGHT//2 - text_gameover.get_height()//2))
+        # GAME OVER
+        dim_surface = pg.Surface(screen.get_size(), pg.SRCALPHA)
+        dim_surface.fill((0, 0, 0, 120)) 
+        screen.blit(dim_surface, (0, 0))
 
-    
+        text_gameover = FONT_BIG.render("GAME OVER", True, RED)
+        shadow = FONT_BIG_SHADOW.render("GAME OVER", True, SHADOW_VIOLET)
+        # screen.blit(shadow, (WINDOW_WIDTH//2 - shadow.get_width()//2 + 3, WINDOW_HEIGHT//2 - shadow.get_height()//2 + 3 -40))
+        screen.blit(text_gameover, (WINDOW_WIDTH//2 - text_gameover.get_width()//2,
+                                WINDOW_HEIGHT//2 - text_gameover.get_height()//2 -40))
+
+        # PRESS ANY KEY
+        msg = "PRESS any key to play again"
+        text_restart = FONT_SMALL.render(msg, True, WHITE)
+        outline = FONT_SMALL_SHADOW.render(msg, True, SHADOW_VIOLET)
+        # screen.blit(outline, (WINDOW_WIDTH//2 - outline.get_width()//2 + 2, WINDOW_HEIGHT//2 + text_gameover.get_height()//2 + 0 + 2))
+        screen.blit(text_restart, (WINDOW_WIDTH//2 - text_restart.get_width()//2,
+                               WINDOW_HEIGHT//2 + text_gameover.get_height()//2 + 0))
+
+
     # 🟩 [NEW] cập nhật & vẽ UI nằm trên cùng (bao gồm overlay khi pause)
     ui.update_hud(score, level, 0)  # code cũ: chưa có biến 'lines', tạm truyền 0
     ui.update(dt)

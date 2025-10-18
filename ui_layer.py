@@ -1,9 +1,6 @@
 import pygame as pg
 import pygame_gui
-
-# 🟩 [NEW] Màu cơ bản
-YELLOW = (255, 215, 0)
-BLUE_DARK = (10, 20, 40)
+from config import *
 
 
 class GameUI:
@@ -66,7 +63,7 @@ class GameUI:
         b = self.btn_pause.relative_rect
         total = b.width * 3 + gap * 2
         start_x = x + (w - total) // 2
-        by = y + (h - b.height) // 2
+        by = y + (h - b.height) // 2 + 10
 
         self.btn_pause.set_relative_position((start_x, by))
         self.btn_restart.set_relative_position((start_x + b.width + gap, by))
@@ -104,8 +101,7 @@ class GameUI:
         pg.draw.rect(screen, YELLOW, self.controls_rect, 3, border_radius=10)
 
         # 🟩 Tiêu đề CONTROL
-        title_font = pg.font.SysFont(None, 28)
-        title = title_font.render("CONTROL", True, YELLOW)
+        title = FONT_SMALL.render("CONTROL", True, YELLOW)
         screen.blit(title, title.get_rect(midtop=(self.controls_rect.centerx, self.controls_rect.top + 6)))
 
         # 🟩 Vẽ nền & hover nút từ pygame_gui

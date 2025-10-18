@@ -39,13 +39,16 @@ last_rotate     = 0
 pg.font.init()
 FONT_BIG = pg.font.SysFont("Arial", 36, bold=True)
 FONT_SMALL = pg.font.SysFont("Arial", 24, bold=True)
-
+FONT_BIG_SHADOW = pg.font.SysFont("Arial", 36, bold=True)
+FONT_SMALL_SHADOW = pg.font.SysFont("Arial", 24, bold=True)
 # Màu
 BLACK = (0,0,0)
 WHITE = (255,255,255)
 YELLOW = (255,255,0)
 RED = (255,0,0)
-BLUE_DARK = (0,0,64)
+BLUE_DARK = (10, 20, 40)
+# BLUE_DARK = (0,0,64)
+SHADOW_VIOLET = (50, 0, 80)
 
 # USEREVENT
 TETROROMINO_DOWN = pg.USEREVENT + 1
