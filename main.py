@@ -15,6 +15,7 @@ from tetromino import Tetroromino, TETROROMINOS
 from board import ObjectOnGridline, DeleteAllRows
 from utils import GetGhostRow
 from ui_layer import GameUI  # code cũ: đã import sẵn, nhưng chưa dùng
+import math  
 
 # khởi tạo Pygame
 pg.init()
@@ -40,11 +41,11 @@ def save_record(value):
 
 def UpdateScore(sco):
     global score, record, level, speed
+    old_level = level # lưu level cũ để so sánh
     score += sco
     if record < score:
         record = score
         save_record(record)
-    
     new_level = score // 200 + 1  # Tăng level mỗi 50 điểm (code cũ: comment ghi 100 điểm, mình sửa comment cho khớp công thức)
     if new_level > level:
         level = new_level
@@ -53,7 +54,9 @@ def UpdateScore(sco):
         speed = int(speed * 0.8)
         speed = max(100, speed)
         pg.time.set_timer(TETROROMINO_DOWN, speed)
-
+    if level > old_level:
+        ui.flash_center("LEVEL UP!", 1200)
+        
 # ảnh block
 picture = []
 for n in range(8):
@@ -283,7 +286,7 @@ while status:
 
     ui.place_controls(panel_x, 40, 200, 130)  # 🟩 [NEW] đặt vị trí cụm nút UI
     next_y = ui.controls_rect.bottom + 20
-
+    
     # NEXT
     next_rect = pg.Rect(panel_x, next_y, 200, 150)
     pg.draw.rect(screen, BLUE_DARK, next_rect)

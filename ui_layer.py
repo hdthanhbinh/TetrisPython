@@ -1,7 +1,7 @@
 import pygame as pg
 import pygame_gui
 from config import *
-
+import math
 
 class GameUI:
     """🟩 UI cho game Tetris: gồm panel CONTROL với 3 nút Pause/Restart/Quit"""
@@ -10,7 +10,10 @@ class GameUI:
                  on_toggle_pause=None, on_restart=None, on_quit=None):
         # 🟩 [NEW] Quản lý UI
         self.manager = pygame_gui.UIManager(screen_size, theme_path)
-
+        # 🟩 [NEW] cấu hình & state cho thông báo giữa màn hình
+        self.flash_text: str | None = None
+        self.flash_start = 0
+        self.flash_ms = 0
         # 🟩 [NEW] Callback sang main.py
         self.on_toggle_pause = on_toggle_pause
         self.on_restart = on_restart
@@ -68,6 +71,11 @@ class GameUI:
         self.btn_pause.set_relative_position((start_x, by))
         self.btn_restart.set_relative_position((start_x + b.width + gap, by))
         self.btn_quit.set_relative_position((start_x + (b.width + gap) * 2, by))
+    def flash_center(self, text: str, duration_ms: int = 1200):
+        """🟩 [NEW] Hiện một thông báo nhỏ giữa màn hình trong duration_ms."""
+        self.flash_text = text
+        self.flash_start = pg.time.get_ticks()
+        self.flash_ms = duration_ms
 
     # 🟩 [NEW] Xử lý sự kiện từ các nút UI
     def process_event(self, event):
@@ -106,6 +114,36 @@ class GameUI:
 
         # 🟩 Vẽ nền & hover nút từ pygame_gui
         self.manager.draw_ui(screen)
+        # 🟩 [NEW] Thông báo nhỏ giữa màn hình (LEVEL UP!, v.v.)
+        if self.flash_text and not self.paused:
+            elapsed = pg.time.get_ticks() - self.flash_start
+            if elapsed < self.flash_ms:
+                # khung mờ nhỏ giữa màn hình
+                txt_font = pg.font.SysFont(None, 54)
+                txt_surf = txt_font.render(self.flash_text, True, (255, 255, 255))
+
+                pad_x, pad_y = 24, 12
+                box_w = txt_surf.get_width() + pad_x * 2
+                box_h = txt_surf.get_height() + pad_y * 2
+
+                cx, cy = screen.get_width() // 2, screen.get_height() // 2
+                box_rect = pg.Rect(0, 0, box_w, box_h)
+                box_rect.center = (cx, cy - 80)  # hơi cao hơn giữa một chút
+
+                # nền bán trong + viền vàng
+                box = pg.Surface((box_w, box_h), pg.SRCALPHA)
+                box.fill((0, 0, 0, 150))
+                screen.blit(box, box_rect.topleft)
+                pg.draw.rect(screen, YELLOW, box_rect, 3, border_radius=12)
+
+                # hiệu ứng nhịp nhẹ
+                t = elapsed / self.flash_ms
+                dy = int(2 * math.sin(elapsed / 90))
+                screen.blit(txt_surf, (box_rect.centerx - txt_surf.get_width() // 2,
+                                    box_rect.centery - txt_surf.get_height() // 2 + dy))
+            else:
+                # hết thời gian -> tắt thông báo
+                self.flash_text = None
 
         # 🟩 Vẽ icon vào giữa nút
         pause_icon = self.img_play if self.paused else self.img_pause
