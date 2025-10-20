@@ -17,10 +17,79 @@ from utils import GetGhostRow
 from ui_layer import GameUI  # code cũ: đã import sẵn, nhưng chưa dùng
 import math  
 
+# -------------------------
+# 🔧 Anti key-repeat (custom)
+# -------------------------
+class KeyRepeat:
+    """
+    Bộ điều khiển giữ phím có delay & interval rõ ràng:
+    - Nhấn 1 cái: di chuyển đúng 1 ô
+    - Giữ phím: sau initial_delay mới lặp, mỗi interval 1 ô
+    - Nhả phím: dừng ngay
+    """
+    def __init__(self, initial_delay=180, interval=60, drop_interval=35):
+        self.initial_delay = initial_delay
+        self.interval = interval
+        self.drop_interval = drop_interval
+        self.state = {
+            pg.K_LEFT:  {"pressed": False, "next_time": 0},
+            pg.K_RIGHT: {"pressed": False, "next_time": 0},
+            pg.K_DOWN:  {"pressed": False, "next_time": 0},
+        }
+
+    def on_keydown(self, key):
+        if key not in self.state:
+            return None
+        now = pg.time.get_ticks()
+        s = self.state[key]
+        s["pressed"] = True
+        s["next_time"] = now + (self.initial_delay if key in (pg.K_LEFT, pg.K_RIGHT) else self.drop_interval)
+        return "move_now"
+
+    def on_keyup(self, key):
+        if key in self.state:
+            self.state[key]["pressed"] = False
+
+    def poll(self):
+        now = pg.time.get_ticks()
+        actions = []
+        for key, s in self.state.items():
+            if s["pressed"] and now >= s["next_time"]:
+                if key == pg.K_LEFT:
+                    actions.append("left")
+                    s["next_time"] = now + self.interval
+                elif key == pg.K_RIGHT:
+                    actions.append("right")
+                    s["next_time"] = now + self.interval
+                elif key == pg.K_DOWN:
+                    actions.append("down")
+                    s["next_time"] = now + self.drop_interval
+        return actions
+import random as rnd
+
+class PieceBag:
+    def __init__(self, pieces):
+        self.pieces = pieces[:]  # TETROROMINOS
+        self.bag = []
+    def next(self):
+        if not self.bag:
+            self.bag = self.pieces[:]
+            rnd.shuffle(self.bag)
+        return self.bag.pop()
+
+# Khởi tạo
+bag = PieceBag(TETROROMINOS)
+
 # khởi tạo Pygame
 pg.init()
 screen = pg.display.set_mode([WINDOW_WIDTH, WINDOW_HEIGHT])
 pg.display.set_caption('Tetris Game')
+# 🟧 [CHANGED] Disable OS repeat to tránh nhảy 2–3 ô khi nhấn nhanh
+try:
+    pg.key.set_repeat()  # gọi không tham số để tắt repeat mặc định
+except Exception:
+    pass
+
 # 🟧 [CHANGED] dùng clock.tick để có dt cho pygame-gui (code cũ: vẫn có clock, nhưng phía dưới dùng pg.time.delay)
 clock = pg.time.Clock()
 
@@ -46,11 +115,10 @@ def UpdateScore(sco):
     if record < score:
         record = score
         save_record(record)
-    new_level = score // 200 + 1  # Tăng level mỗi 50 điểm (code cũ: comment ghi 100 điểm, mình sửa comment cho khớp công thức)
+    new_level = score // 200 + 1  # Tăng level theo điểm
     if new_level > level:
         level = new_level
-        # đặt giới hạn tối thiểu của tốc độ và tăng giảm tốc độ theo cấp
-        # speed = max(100, START_SPEED - (level - 1) * 200)
+        # tăng tốc rơi khi level tăng
         speed = int(speed * 0.8)
         speed = max(100, speed)
         pg.time.set_timer(TETROROMINO_DOWN, speed)
@@ -78,17 +146,13 @@ level = 1
 pg.time.set_timer(TETROROMINO_DOWN, speed)
 
 # khởi tạo game
-next_tetro = rnd.choice(TETROROMINOS)
+next_tetro = bag.next()
 character = Tetroromino(next_tetro)
-next_tetro = rnd.choice(TETROROMINOS)
+next_tetro = bag.next()
 grid = [0] * (COLUMNS * ROWS)
 game_over = False
 status = True
-move_left = move_right = move_down = False
-move_delay = 0  # Để kiểm soát tốc độ lặp lại khi giữ phím
 paused = False
-# 🟩 [NEW] bổ sung biến đệm để tránh NameError trong move_piece (code cũ: dùng nhưng chưa khai báo ban đầu)
-left_pressed = right_pressed = down_pressed = False
 
 # 🟩 [NEW] Hàm đồng bộ trạng thái Pause giữa logic & UI
 def set_paused(state: bool):
@@ -96,11 +160,11 @@ def set_paused(state: bool):
     paused = state
     try:
         ui.paused = state               # đồng bộ UI overlay
-        ui.btn_pause.set_text('Resume' if state else 'Pause')  # đồng bộ nhãn nút
+        ui.btn_pause.set_text('Resume' if state else 'Pause')  # đồng bộ nhãn nút (UI icon-only vẫn hoạt động)
     except Exception:
         pass
 
-# 🟩 [NEW] gom logic reset game để dùng cho nút Restart (code cũ: reset rải trong KEYUP khi game_over)
+# 🟩 [NEW] gom logic reset game để dùng cho nút Restart
 def reset_game():
     global grid, score, level, character, next_tetro, game_over, paused, speed
     grid = [0] * (COLUMNS * ROWS)
@@ -108,42 +172,20 @@ def reset_game():
     level = 1
     speed = START_SPEED
     pg.time.set_timer(TETROROMINO_DOWN, speed)
-    next_tetro = rnd.choice(TETROROMINOS)
+    next_tetro = bag.next()
     character = Tetroromino(next_tetro)
-    next_tetro = rnd.choice(TETROROMINOS)
+    next_tetro = bag.next()
     game_over = False
-    set_paused(False)  # 🟩 [NEW] đảm bảo UI & logic đều không còn pause
-
-def move_piece():
-    # 🟧 [CHANGED] Dùng tick (ms) để lặp khi giữ phím cho mượt & dễ chỉnh
-    global last_move_left, last_move_right, last_move_down
-    now = pg.time.get_ticks()
-
-    if move_left and now - last_move_left >= MOVE_REPEAT_MS:
-        character.update(grid, ROWS, COLUMNS, 0, -1)
-        last_move_left = now
-
-    if move_right and now - last_move_right >= MOVE_REPEAT_MS:
-        character.update(grid, ROWS, COLUMNS, 0, 1)
-        last_move_right = now
-
-    if move_down and now - last_move_down >= SOFT_DROP_REPEAT_MS:
-        # rơi nhanh khi giữ ↓
-        character.update(grid, ROWS, COLUMNS, 1, 0)
-        last_move_down = now
-
+    set_paused(False)  # đảm bảo UI & logic đều không còn pause
 
 # 🟩 [NEW] callback cho UI (Pause/Restart/Quit)
 def handle_toggle_pause(is_paused: bool):
-    # code cũ: toggle bằng phím => giờ đồng bộ thêm từ UI
     set_paused(is_paused)
 
 def handle_restart():
-    # code cũ: reset trong KEYUP khi game_over => giờ gom vào reset_game()
     reset_game()
 
 def handle_quit():
-    # Thoát game khi bấm nút Quit trên UI
     pg.quit()
     sys.exit(0)
 
@@ -156,105 +198,83 @@ ui = GameUI(
     on_quit=handle_quit
 )
 
+# 🟩 [NEW] Khởi tạo bộ điều khiển auto-repeat
+keyrep = KeyRepeat(initial_delay=180, interval=60, drop_interval=35)
+
 # ================= vòng lặp game =====================
 while status:
     # 🟧 [CHANGED] dùng clock.tick để có dt cho UI thay vì pg.time.delay(100)
-    # code cũ: pg.time.delay(100)
     dt = clock.tick(60) / 1000.0
-
-    if not game_over and not paused:
-        move_piece()
 
     for event in pg.event.get():
         if event.type == pg.QUIT:
             status = False
 
-        # 🟩 [NEW] chuyển sự kiện cho UI (nút Pause/Restart/Quit)
+        # 🟩 chuyển sự kiện cho UI (nút Pause/Restart/Quit)
         ui.process_event(event)
 
-        # 🟧 [CHANGED] gộp KEYDOWN vào 1 khối duy nhất
         if event.type == pg.KEYDOWN:
-            # === Toggle Pause bằng SPACE ===
-            if event.key == pg.K_SPACE:
-                # 🟧 [CHANGED] dùng hàm đồng bộ
-                set_paused(not paused)
-                continue  # 🟩 sau khi toggle, bỏ qua xử lý phím khác của frame này
-
-            # === Toggle Pause bằng ESC ===
-            if event.key == pg.K_ESCAPE:
-                # 🟧 [CHANGED] dùng hàm đồng bộ
+            # Toggle Pause bằng SPACE/ESC
+            if event.key in (pg.K_SPACE, pg.K_ESCAPE):
                 set_paused(not paused)
                 continue
 
-            # 🟩 [NEW] nếu đang pause -> không xử lý phím game
-            if paused:
+            # Nếu đang pause hoặc game over, bỏ qua phím gameplay
+            if paused or game_over:
                 continue
 
-            # 🟩 nếu game over thì bỏ qua phím game (tuỳ bạn)
-            if game_over:
-                continue
-
-            # === DI CHUYỂN / RƠI NHANH (bước đầu) ===
-            if event.key == pg.K_LEFT:
-                move_left = True;  left_pressed = True
-                character.update(grid, ROWS, COLUMNS, 0, -1)
-                last_move_left = pg.time.get_ticks()    # 🟩 [NEW] mốc lặp giữ phím
-
-            elif event.key == pg.K_RIGHT:
-                move_right = True; right_pressed = True
-                character.update(grid, ROWS, COLUMNS, 0, 1)
-                last_move_right = pg.time.get_ticks()   # 🟩 [NEW]
-
-            elif event.key == pg.K_DOWN:
-                move_down = True;  down_pressed = True
-                character.update(grid, ROWS, COLUMNS, 1, 0)  # bước đầu rơi nhanh
-                last_move_down = pg.time.get_ticks()    # 🟩 [NEW]
+            # --- Nhấn lần đầu: di chuyển đúng 1 bước ---
+            if event.key in (pg.K_LEFT, pg.K_RIGHT, pg.K_DOWN):
+                if keyrep.on_keydown(event.key) == "move_now":
+                    if event.key == pg.K_LEFT:
+                        character.update(grid, ROWS, COLUMNS, 0, -1)
+                    elif event.key == pg.K_RIGHT:
+                        character.update(grid, ROWS, COLUMNS, 0, 1)
+                    elif event.key == pg.K_DOWN:
+                        character.update(grid, ROWS, COLUMNS, 1, 0)
 
             elif event.key == pg.K_UP:
-                # 🟩 [NEW] (tuỳ chọn) chặn xoay quá nhanh
-                now = pg.time.get_ticks()
-                if now - last_rotate >= ROTATE_REPEAT_MS:
-                    character.rotate(grid, ROWS, COLUMNS)
-                    last_rotate = now
+                character.rotate(grid, ROWS, COLUMNS)
 
-        # 🟩 [NEW] Sự kiện timer rơi tự động (gravity)
+        elif event.type == pg.KEYUP:
+            keyrep.on_keyup(event.key)
+
+            # Nhấn phím bất kỳ để chơi lại khi game_over
+            if game_over:
+                reset_game()
+                continue
+
+        # Rơi tự động (gravity)
         if event.type == TETROROMINO_DOWN and not paused and not game_over:
             if not character.update(grid, ROWS, COLUMNS, 1, 0):
                 ObjectOnGridline(grid, character, COLUMNS)
                 UpdateScore(4)
                 DeleteAllRows(grid, ROWS, COLUMNS, UpdateScore)
                 character = Tetroromino(next_tetro)
-                next_tetro = rnd.choice(TETROROMINOS)
+                next_tetro = bag.next()
                 if not character.check(grid, ROWS, COLUMNS, character.row, character.column):
                     game_over = True
 
-        # 🟧 [CHANGED] KEYUP: tắt cờ giữ phím, reset khi game_over
-        if event.type == pg.KEYUP:
-            if event.key == pg.K_LEFT:
-                move_left = False;  left_pressed = False
-            elif event.key == pg.K_RIGHT:
-                move_right = False; right_pressed = False
-            elif event.key == pg.K_DOWN:
-                move_down = False;  down_pressed = False
-
-            # 🟩 [NEW] nếu muốn nhấn phím bất kỳ để chơi lại khi game_over
-            if game_over:
-                reset_game()
-                continue
+    # Auto-repeat khi GIỮ phím (chỉ chạy khi đang chơi)
+    if not paused and not game_over:
+        for act in keyrep.poll():
+            if act == "left":
+                character.update(grid, ROWS, COLUMNS, 0, -1)
+            elif act == "right":
+                character.update(grid, ROWS, COLUMNS, 0, 1)
+            elif act == "down":
+                character.update(grid, ROWS, COLUMNS, 1, 0)
 
     # vẽ background
     screen.blit(bg_image, (0,0))
 
     # board chính
-    #board_rect = pg.Rect(MARGIN_LEFT, MARGIN_TOP, BOARD_WIDTH - 8 , BOARD_HEIGHT +3 )
-    board_rect = pg.Rect(MARGIN_LEFT, MARGIN_TOP, BOARD_WIDTH , BOARD_HEIGHT  )
+    board_rect = pg.Rect(MARGIN_LEFT, MARGIN_TOP, BOARD_WIDTH , BOARD_HEIGHT)
     for r in range(ROWS):
         for c in range(COLUMNS):
             x = MARGIN_LEFT + c * DISTANCE
             y = MARGIN_TOP + r * DISTANCE
             screen.blit(picture[0], (x, y))
-    # pg.draw.rect(screen, YELLOW, board_rect, 2)     
-    # pg.draw.rect(screen, YELLOW, board_rect, 2)       đáng lẽ là vẽ viền luôn nhưng mà grid đè -> xấu => vẽ sau grid
 
     # ghost piece
     if not game_over:
@@ -278,13 +298,13 @@ while status:
             y = MARGIN_TOP + n // COLUMNS * DISTANCE
             screen.blit(picture[color], (x, y))
 
-    # giờ mới vẽ viền nè
+    # viền board
     pg.draw.rect(screen, YELLOW, board_rect, 2)
 
     # panel bên phải
     panel_x = MARGIN_LEFT + BOARD_WIDTH + 70
 
-    ui.place_controls(panel_x, 40, 200, 130)  # 🟩 [NEW] đặt vị trí cụm nút UI
+    ui.place_controls(panel_x, 40, 200, 130)  # đặt vị trí cụm nút UI
     next_y = ui.controls_rect.bottom + 20
     
     # NEXT
@@ -352,7 +372,6 @@ while status:
 
         text_gameover = FONT_BIG.render("GAME OVER", True, RED)
         shadow = FONT_BIG_SHADOW.render("GAME OVER", True, SHADOW_VIOLET)
-        # screen.blit(shadow, (WINDOW_WIDTH//2 - shadow.get_width()//2 + 3, WINDOW_HEIGHT//2 - shadow.get_height()//2 + 3 -40))
         screen.blit(text_gameover, (WINDOW_WIDTH//2 - text_gameover.get_width()//2,
                                 WINDOW_HEIGHT//2 - text_gameover.get_height()//2 -40))
 
@@ -360,13 +379,11 @@ while status:
         msg = "PRESS any key to play again"
         text_restart = FONT_SMALL.render(msg, True, WHITE)
         outline = FONT_SMALL_SHADOW.render(msg, True, SHADOW_VIOLET)
-        # screen.blit(outline, (WINDOW_WIDTH//2 - outline.get_width()//2 + 2, WINDOW_HEIGHT//2 + text_gameover.get_height()//2 + 0 + 2))
         screen.blit(text_restart, (WINDOW_WIDTH//2 - text_restart.get_width()//2,
                                WINDOW_HEIGHT//2 + text_gameover.get_height()//2 + 0))
 
-
-    # 🟩 [NEW] cập nhật & vẽ UI nằm trên cùng (bao gồm overlay khi pause)
-    ui.update_hud(score, level, 0)  # code cũ: chưa có biến 'lines', tạm truyền 0
+    # cập nhật & vẽ UI nằm trên cùng (bao gồm overlay khi pause)
+    ui.update_hud(score, level, 0)  # tạm truyền 0 cho 'lines'
     ui.update(dt)
     ui.draw(screen)
 
