@@ -4,6 +4,7 @@ Main (refactored): ngắn gọn hơn, tách bớt logic ra module
 import sys
 import random as rnd
 import pygame as pg
+import os
 
 from config import *
 from tetromino import Tetroromino, TETROROMINOS
@@ -25,11 +26,14 @@ except Exception:
     pass
 clock = pg.time.Clock()
 
+IMG_DIR = os.path.join(os.path.dirname(__file__), "../img")
+
+
 # Ảnh
-picture = [pg.transform.scale(pg.image.load(f"b_{n}.jpg"), (DISTANCE, DISTANCE)) for n in range(8)]
-bg_image = pg.image.load("background.jpg")
+picture = [pg.transform.scale(pg.image.load(os.path.join(IMG_DIR, f"b_{n}.jpg")), (DISTANCE, DISTANCE)) for n in range(8)]
+bg_image = pg.image.load(os.path.join(IMG_DIR, "background.jpg"))
 bg_image = pg.transform.scale(bg_image, (WINDOW_WIDTH, WINDOW_HEIGHT))
-appIcon = pg.image.load("logo.png")
+appIcon = pg.image.load(os.path.join(IMG_DIR, "logo.png"))
 pg.display.set_icon(appIcon)
 
 # UI & State

@@ -1,5 +1,6 @@
 import pygame as pg
 import pygame_gui
+import os
 from config import *
 import math
 
@@ -33,11 +34,13 @@ class GameUI:
             surf = pg.image.load(name).convert_alpha()
             return pg.transform.smoothscale(surf, (size, size))
 
+        ICON_DIR = os.path.join(os.path.dirname(__file__), "../img")
+
         try:
-            self.img_pause = _load_icon("pause.png")
-            self.img_play = _load_icon("play.png")          # Khi đang paused
-            self.img_restart = _load_icon("restart.png")
-            self.img_quit = _load_icon("quit.png")
+            self.img_pause = _load_icon(os.path.join(ICON_DIR, "pause.png"))
+            self.img_play = _load_icon(os.path.join(ICON_DIR, "play.png"))          # Khi đang paused
+            self.img_restart = _load_icon(os.path.join(ICON_DIR, "restart.png"))
+            self.img_quit = _load_icon(os.path.join(ICON_DIR, "quit.png"))
         except Exception as e:
             print("⚠️ Không thể tải icon:", e)
             # fallback: vẽ chữ nếu thiếu icon
