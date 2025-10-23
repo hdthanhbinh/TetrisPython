@@ -1,10 +1,10 @@
 """
-Main (refactored): ngắn gọn hơn, tách bớt logic ra module
+Main build-ready (fixed):
+- Defines `grid` before first use (avoids NameError).
+- Robust resource_path(): uses parent-of-src when running from source, and MEIPASS when bundled.
 """
-import sys
-import random as rnd
+import sys, os, random as rnd
 import pygame as pg
-import os
 
 from config import *
 from tetromino import Tetroromino, TETROROMINOS
@@ -16,18 +16,26 @@ from gamestate import GameState
 from piece_bag import PieceBag
 from hud import draw_hud
 
+# -------- resource resolver (works in .exe & in source tree) --------
+def resource_path(*parts: str) -> str:
+    if hasattr(sys, "_MEIPASS"):
+        base = sys._MEIPASS  # PyInstaller extraction dir
+    else:
+        # Running from source: base is the project root (parent of src)
+        base = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    return os.path.join(base, *parts)
+
+IMG_DIR = resource_path("img")
+
 # ---------------- Init ----------------
 pg.init()
 screen = pg.display.set_mode([WINDOW_WIDTH, WINDOW_HEIGHT])
 pg.display.set_caption('Tetris Game')
 try:
-    pg.key.set_repeat()  # tắt repeat mặc định
+    pg.key.set_repeat()  # disable OS repeat
 except Exception:
     pass
 clock = pg.time.Clock()
-
-IMG_DIR = os.path.join(os.path.dirname(__file__), "../img")
-
 
 # Ảnh
 picture = [pg.transform.scale(pg.image.load(os.path.join(IMG_DIR, f"b_{n}.jpg")), (DISTANCE, DISTANCE)) for n in range(8)]
@@ -36,7 +44,7 @@ bg_image = pg.transform.scale(bg_image, (WINDOW_WIDTH, WINDOW_HEIGHT))
 appIcon = pg.image.load(os.path.join(IMG_DIR, "logo.png"))
 pg.display.set_icon(appIcon)
 
-# UI & State
+# UI & State helpers
 def set_paused(p: bool):
     global paused
     paused = p
@@ -75,11 +83,13 @@ paused = False
 game_over = False
 status = True
 
-# Game init
+# Game init with 7-bag
 bag = PieceBag(TETROROMINOS)
 next_tetro = bag.next()
 character = Tetroromino(next_tetro)
 next_tetro = bag.next()
+
+# ✅ Define grid BEFORE the loop (prevents NameError)
 grid = [0] * (COLUMNS * ROWS)
 
 # Input repeat
