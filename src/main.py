@@ -6,6 +6,7 @@ Main build-ready (fixed):
 import sys, os, random as rnd
 import pygame as pg
 
+import os
 from config import *
 from tetromino import Tetroromino, TETROROMINOS
 from board import ObjectOnGridline, DeleteAllRows
@@ -179,6 +180,24 @@ while status:
     pg.draw.rect(screen, YELLOW, board_rect, 2)
 
     draw_hud(screen, ui, state, next_tetro, picture)
+
+    # Hiện overlay và text khi game over
+    if game_over:
+        # Tạo overlay mờ đen
+        dim_surface = pg.Surface(screen.get_size(), pg.SRCALPHA)
+        dim_surface.fill((0, 0, 0, 120))  # Alpha=120 để tạo hiệu ứng mờ
+        screen.blit(dim_surface, (0, 0))
+
+        # Vẽ text GAME OVER
+        text_gameover = FONT_BIG.render("GAME OVER", True, RED)
+        screen.blit(text_gameover, (WINDOW_WIDTH//2 - text_gameover.get_width()//2,
+                                WINDOW_HEIGHT//2 - text_gameover.get_height()//2 - 40))
+
+        # Vẽ text hướng dẫn chơi lại
+        msg = "Press any key to play again"
+        text_restart = FONT_SMALL.render(msg, True, WHITE)
+        screen.blit(text_restart, (WINDOW_WIDTH//2 - text_restart.get_width()//2,
+                               WINDOW_HEIGHT//2 + text_gameover.get_height()//2 + 0))
 
     ui.update_hud(state.score, state.level, 0)
     ui.update(dt)

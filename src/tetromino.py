@@ -41,7 +41,9 @@ class Tetroromino:
             if color > 0:
                 rs = r + n//4
                 cs = c + n%4
-                if cs < 0 or rs >= rows or cs >= columns or grid[rs * columns + cs] > 0:
+                # Nếu hàng nằm phía trên (rs < 0) hoặc vượt ra ngoài cạnh phải/trên/dưới
+                # hoặc ô đã bị chiếm thì vị trí không hợp lệ
+                if rs < 0 or cs < 0 or rs >= rows or cs >= columns or grid[rs * columns + cs] > 0:
                     return False
         return True
 
