@@ -1,11 +1,5 @@
-"""
-Main build-ready (fixed):
-- Defines `grid` before first use (avoids NameError).
-- Robust resource_path(): uses parent-of-src when running from source, and MEIPASS when bundled.
-"""
 import sys, os, random as rnd
 import pygame as pg
-
 import os
 from config import *
 from tetromino import Tetroromino, TETROROMINOS
@@ -17,12 +11,10 @@ from gamestate import GameState
 from piece_bag import PieceBag
 from hud import draw_hud
 
-# -------- resource resolver (works in .exe & in source tree) --------
 def resource_path(*parts: str) -> str:
     if hasattr(sys, "_MEIPASS"):
-        base = sys._MEIPASS  # PyInstaller extraction dir
+        base = sys._MEIPASS 
     else:
-        # Running from source: base is the project root (parent of src)
         base = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     return os.path.join(base, *parts)
 
@@ -33,7 +25,7 @@ pg.init()
 screen = pg.display.set_mode([WINDOW_WIDTH, WINDOW_HEIGHT])
 pg.display.set_caption('Tetris Game')
 try:
-    pg.key.set_repeat()  # disable OS repeat
+    pg.key.set_repeat()  
 except Exception:
     pass
 clock = pg.time.Clock()
